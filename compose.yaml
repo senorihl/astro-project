@@ -1,0 +1,18 @@
+services:
+  app:
+    build:
+      dockerfile: Dockerfile
+      target: dev
+    env_file:
+      - .env.dist
+    volumes:
+      - ./:/usr/src/app
+    ports:
+      - "4321:4321"
+
+  db:
+    image: postgres:15-alpine
+    env_file:
+      - .env.dist
+    ports:
+      - "5432:5432"

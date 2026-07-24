@@ -1,0 +1,11 @@
+services:
+  app:
+    build:
+      dockerfile: Dockerfile
+      target: prod
+    healthcheck:
+      test: []
+      disable: true
+
+  db:
+    ports: !reset []

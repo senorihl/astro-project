@@ -1,0 +1,84 @@
+name: Deploy to Server via SSH
+
+on:
+  push:
+    branches:
+      - master
+      - main
+
+# Prevent concurrent deployments which could corrupt the server state
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  TMP_DIRECTORY: "/tmp/deploy-${{ github.event.repository.name }}/"
+  SSH_HOST: ${{ secrets.SSH_HOST || '' }}
+
+
+jobs:
+  if-needed:
+    runs-on: ubuntu-latest
+    outputs:
+      should_deploy: ${{ steps.verify-required-vars.outputs.should_deploy }}
+    steps:
+      - id: verify-required-vars
+        run: |
+          if [[ "${{ secrets.SSH_HOST || '' }}" != "" ]]; then
+            echo 'should_deploy=true' >> $GITHUB_OUTPUT
+          else
+            echo 'should_deploy=false' >> $GITHUB_OUTPUT
+          fi
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: if-needed
+    if: ${{ needs.if-needed.outputs.should_deploy == 'true' }}
+    environment:
+      name: production
+      url: https://${{ github.event.repository.name }}.senorihl.link
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Copy files to VPS tmp via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "."
+          target: ${{ env.TMP_DIRECTORY }}
+
+      - name: Execute deployment commands via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          COMPOSE_OVERRIDE: |
+            ${{ secrets.COMPOSE_OVERRIDE || '' }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 20m
+          script: |
+            set -x
+            
+            # Rsync files from /tmp dir
+            rsync -av --exclude='.vscode' --exclude='.idea' --exclude='.git' --exclude='.github' ${{ env.TMP_DIRECTORY }} ${{ secrets.SSH_DIRECTORY }} 
+            
+            # Go to workspace
+            cd ${{ secrets.SSH_DIRECTORY }}
+            
+            # Write compose.prod.override.yaml
+            cat <<'EOF' > compose.prod.override.yaml
+            ${{ secrets.COMPOSE_OVERRIDE }}
+            EOF
+            
+            # Restart containers
+            docker compose -f compose.yaml -f compose.prod.yaml -f compose.prod.override.yaml up -d --remove-orphans --build --force-recreate --wait
+            
+            # Prune dangling images
+            docker image prune -f
+            
+            # Cleanup tmp directory
+            sudo rm -rf ${{ env.TMP_DIRECTORY }}

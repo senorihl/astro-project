@@ -1,0 +1,15 @@
+# build output
+dist/
+# generated types
+.astro/
+
+# agentic development artifact
+.agents/
+.opencode/
+_bmad*
+
+# dependencies
+node_modules/
+
+# useless for build
+.github/
