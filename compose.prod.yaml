@@ -6,6 +6,13 @@ services:
     healthcheck:
       test: []
       disable: true
+    networks:
+      default: {}
 
   db:
     ports: !reset []
+    networks:
+      default: {}
+
+networks:
+  default: {}
