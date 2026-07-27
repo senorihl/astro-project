@@ -60,7 +60,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           command_timeout: 20m
           script: |
-            set -x
+            set -ex
             
             # Create workspace if missing
             mkdir -p ${{ secrets.SSH_DIRECTORY }} 
