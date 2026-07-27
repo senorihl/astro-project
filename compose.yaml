@@ -1,5 +1,5 @@
 services:
-  app:
+  app: &base
     build:
       dockerfile: Dockerfile
       target: dev
@@ -9,6 +9,17 @@ services:
       - ./:/usr/src/app
     ports:
       - "4321:4321"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  cron:
+    <<: *base
+    command: ['crond', '-f']
+    ports: []
+    healthcheck:
+      test: []
+      disable: true
 
   db:
     image: postgres:15-alpine
@@ -16,3 +27,8 @@ services:
       - .env.dist
     ports:
       - "5432:5432"
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-d", "${POSTGRES_DB:-app}", "-U", "${POSTGRES_USER:-app}" ]
+      timeout: 5s
+      retries: 5
+      start_period: 60s

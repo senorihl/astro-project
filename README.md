@@ -63,6 +63,21 @@ To set up a database:
    - *SQLite:* `docker compose exec app yarn add @libsql/client drizzle-orm && docker compose exec app yarn add -D drizzle-kit`
 3. **Configure Drizzle:** Create a `drizzle.config.ts` file in the project root. The entrypoint waits for this file (and `drizzle-kit` in your `package.json`) to exist before attempting to run database syncs automatically on startup.
 
+## ⏰ Scheduled Jobs (Cron)
+
+The template includes built-in support for running scheduled background tasks using the `cron` service defined in `compose.yaml`.
+
+To create and run a cron job:
+
+1. **Create your job script:** Add a TypeScript file to the `src/jobs/` directory (e.g., `src/jobs/cleanup.ts`).
+2. **Automatic Scheduling:** On startup, `docker-entrypoint.sh` scans for `.ts` files directly in the `src/jobs/` directory (this is not recursive - subdirectories are ignored) and automatically schedules each to run **every minute** (`* * * * *`). They are executed using `yarn tsx`.
+3. **View Logs:** The output of your cron jobs is piped directly to the container's stdout. You can view the logs in real-time by running:
+   ```bash
+   docker compose logs -f cron
+   ```
+
+*Note: The cron container pauses for 10 seconds upon startup to ensure the primary `app` container has time to complete any pending database migrations before the jobs begin.*
+
 ## 📦 Production
 
 The production environment is configured in `compose.prod.yaml` and uses a multi-stage `Dockerfile` to build a static site served via Nginx.
